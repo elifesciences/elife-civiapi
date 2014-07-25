@@ -1,8 +1,11 @@
 #!bin/python
 
 from __future__ import print_function
-import sys, os, inspect
+import sys
+import os
+import inspect
 import argparse
+import html2text
 
 pycrmfolder = os.path.realpath(
     os.path.abspath(
@@ -14,6 +17,7 @@ if pycrmfolder not in sys.path:
     sys.path.insert(0, pycrmfolder)
 
 from pythoncivicrm import CiviCRM
+
 
 # using print_function
 def debugmsg(*objs):
@@ -54,15 +58,27 @@ def getoptions():
         prog='mailcivi',
         description='Create a new mail template in a remote CiviCRM installation.',
         usage='%(prog)s [options]'
-        )
-    parser.add_argument('--url', help='URL of the site', default='http://crm.example.org/crm/civicrm/ajax/rest')
-
-    parser.add_argument('--verbose', '-v', action='count', help='print additional messages to stderr', default=0)
+    )
+    parser.add_argument('--url',
+                        help='URL of the site', default='http://crm.example.org/crm/civicrm/ajax/rest')
+    parser.add_argument('--sitekey', help='site_key of the site you are connecting to.', default='')
+    parser.add_argument('--apikey', help='user api key', default='')
+    parser.add_argument('--name', help='name of new template', default='mailinglist')
+    parser.add_argument('--subject', help='Email subject text', default='News')
+    parser.add_argument('--sendto', help='CiviCRM group name to send mail to', default='')
+    parser.add_argument('htmlfile', nargs='?', type=argparse.FileType('r'),
+                        help='file containing the templated HTML to email.', default=sys.stdin)
+    parser.add_argument('--verbose', '-v', action='count',
+                        help='print additional messages to stderr', default=0)
 
     args = parser.parse_args()
 
     return args
 
+
+def getPlaintext(html):
+    #html = open("foobar.html").read()
+    return html2text.html2text(html)
 
 def main():
     global settings
@@ -72,8 +88,12 @@ def main():
     #    rest.php??entity=Mailing&action=get&debug=1&sequential=1&json=1&api_key={yoursitekey}&key={yourkey}
 
     url = 'http://crm.elifesciences.org/crm'
+    htmltemplate = settings.htmlfile.read()
+    plaintext = getPlaintext(htmltemplate)
 
-    civicrm = CiviCRM(url, site_key=site_key, api_key=api_key, use_ssl=False)
+    civicrm = CiviCRM(url, site_key=settings.sitekey, api_key=settings.apikey, use_ssl=False)
+
+    # use htmltemplate
 
     search_results = civicrm.get('Mailing')
 
