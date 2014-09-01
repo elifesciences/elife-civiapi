@@ -1,0 +1,7 @@
+{
+    "subject": "Test Mailing 3",
+    "from_id": 1,
+    "name": "Mailing Test",
+    "html": "<html><body><p>Test</p></body></html>\n",
+    "plain": "Test\n"
+}

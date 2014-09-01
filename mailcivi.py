@@ -16,6 +16,7 @@ pycrmfolder = os.path.realpath(
 if pycrmfolder not in sys.path:
     sys.path.insert(0, pycrmfolder)
 
+import json
 from pythoncivicrm import CiviCRM
 
 
@@ -50,6 +51,9 @@ def errormsg(*objs):
     print("ERROR: ", *objs, end='\n', file=sys.stderr)
 
 
+class mailtemplate:
+    pass
+
 def getoptions():
     """
     Use the Python argparse module to read in the command line args
@@ -57,8 +61,10 @@ def getoptions():
     parser = argparse.ArgumentParser(
         prog='mailcivi',
         description='Create a new mail template in a remote CiviCRM installation.',
-        usage='%(prog)s [options] [htmlfile] [textfile]'
+        usage='%(prog)s [options] (--json=file|--html=file) [--text=file]'
     )
+    parser.add_argument('--verbose', '-v', action='count',
+                        help='Print additional messages to stderr', default=0)
     parser.add_argument('--url',
                         help='URL of the site homepage.', default='http://crm.example.org/sites/all/modules/civicrm')
     parser.add_argument('--sitekey', help='The site_key of the site you are connecting to.', default='')
@@ -66,20 +72,72 @@ def getoptions():
     parser.add_argument('--name', help='Name of new template.', default='mailinglist')
     parser.add_argument('--subject', help='Email subject text.', default='News')
     parser.add_argument('--from_id', help='CiviCRM Contact ID of sender.', default='1')
-    parser.add_argument('htmlfile', nargs='?', type=argparse.FileType('r'),
-                        help='File containing the templated HTML to email. If not supplied, read from stdin.',
-                        default=sys.stdin)
-    parser.add_argument('textfile', nargs='?', type=argparse.FileType('r'),
+    inputgroup = parser.add_mutually_exclusive_group(required=True)
+    inputgroup.add_argument('--json', nargs='?', type=argparse.FileType('r'),
+                            dest='jsonfile',
+                            help='File containing the templated email as JSON.')
+    inputgroup.add_argument('--html', nargs='?', type=argparse.FileType('r'),
+                            dest='htmlfile',
+                            help='File containing the templated HTML to email.')
+    parser.add_argument('--text', type=argparse.FileType('r'),
+                        dest='textfile',
                         help='File containing the templated Text to email. If not supplied, the html version'
-                             'is rendered using html2text.',
-                        default=None)
-    parser.add_argument('--verbose', '-v', action='count',
-                        help='Print additional messages to stderr', default=0)
+                             'is rendered using html2text.')
 
     args = parser.parse_args()
 
     return args
 
+
+def readjson(jsontemplate):
+    """
+    Read the necesary input data for the mail template into the
+    result, where metadata from the command line (seen in the
+    global settings) overrides json-supplied data.
+
+    :param jsontemplate: The JSON-derived input.
+    :return: an object containing the data to send
+    """
+    result = mailtemplate()
+    result.name = jsontemplate['name']
+    result.subject = jsontemplate['subject']
+    result.from_id = jsontemplate['from_id']
+    result.html = jsontemplate['html']
+    result.plain = jsontemplate['plain']
+    if jsontemplate['plain']:
+        result.plain = jsontemplate['plain']
+    else:
+        result.plain = getplaintext(result.html)
+
+    if settings.name > "":
+        result.name = settings.name
+    if settings.subject > "":
+        result.subject = settings.subject
+    if settings.from_id > "":
+        result.from_id = settings.from_id
+
+    return result
+
+def readlocal():
+    """
+    Read the necesary input data for the mail template into the
+    result, where metadata from the command line (seen in the
+    global settings) overrides json-supplied data.
+
+    :param jsontemplate: The JSON-derived input.
+    :return: an object containing the data to send
+    """
+    result = mailtemplate()
+    result.name = settings.name
+    result.subject = settings.subject
+    result.from_id = settings.from_id
+    result.html = settings.htmlfile.read()
+    if settings.textfile:
+        result.plain = settings.textfile.read()
+    else:
+        result.plain = getplaintext(result.html)
+
+    return result
 
 def getplaintext(html):
     return html2text.html2text(html)
@@ -107,28 +165,31 @@ def main():
     global settings
     settings = getoptions()
 
-    htmltemplate = settings.htmlfile.read()
-    plaintext = getplaintext(htmltemplate)
+    if settings.htmlfile:
+        template = readlocal()
+    if settings.jsonfile:
+        jsontemplate = json.load(settings.jsonfile)
+        template = readjson(jsontemplate)
 
     infomsg('Using: ')
     infomsg('  URL  :', settings.url)
     infomsg('  Skey :', settings.sitekey)
     infomsg('  Akey :', settings.apikey)
-    infomsg('Name   :', settings.name)
-    infomsg('Subject:', settings.subject)
-    infomsg('Creator:', settings.from_id)
+    infomsg('Name   :', template.name)
+    infomsg('Subject:', template.subject)
+    infomsg('Creator:', template.from_id)
 
     civicrm = CiviCRM(settings.url, site_key=settings.sitekey, api_key=settings.apikey, use_ssl=False)
 
     debugmsg('Constructed object ', civicrm)
 
-    if check_creator(civicrm, settings.from_id):
+    if check_creator(civicrm, template.from_id):
         params = {
-            'name': settings.name,
-            'subject': settings.subject,
-            'created_id': settings.from_id,
-            'body_html': htmltemplate,
-            'body_text': plaintext,
+            'name': template.name,
+            'subject': template.subject,
+            'created_id': template.from_id,
+            'body_html': template.html,
+            'body_text': template.plain,
             'url_tracking': '1',
         }
         results = civicrm.create('Mailing', **params)
