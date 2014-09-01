@@ -1,3 +1,14 @@
 /.idea/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
 
-*.pyc
+# Distribution / packaging
+/lib/
+/lib64/
+/bin/
+/include/
+
+# Sphinx documentation
+docs/_build/
+
