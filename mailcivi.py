@@ -69,9 +69,9 @@ def getoptions():
                         help='URL of the site homepage.', default='http://crm.example.org/sites/all/modules/civicrm')
     parser.add_argument('--sitekey', help='The site_key of the site you are connecting to.', default='')
     parser.add_argument('--apikey', help='The api key.', default='')
-    parser.add_argument('--name', help='Name of new template.', default='mailinglist')
-    parser.add_argument('--subject', help='Email subject text.', default='News')
-    parser.add_argument('--from_id', help='CiviCRM Contact ID of sender.', default='1')
+    parser.add_argument('--name', help='Name of new template.')
+    parser.add_argument('--subject', help='Email subject text.')
+    parser.add_argument('--from_id', help='CiviCRM Contact ID of sender.')
     inputgroup = parser.add_mutually_exclusive_group(required=True)
     inputgroup.add_argument('--json', nargs='?', type=argparse.FileType('r'),
                             dest='jsonfile',
@@ -103,7 +103,6 @@ def readjson(jsontemplate):
     result.subject = jsontemplate['subject']
     result.from_id = jsontemplate['from_id']
     result.html = jsontemplate['html']
-    result.plain = jsontemplate['plain']
     if jsontemplate['plain']:
         result.plain = jsontemplate['plain']
     else:
