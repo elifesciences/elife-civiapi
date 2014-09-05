@@ -51,7 +51,7 @@ def errormsg(*objs):
     print("ERROR: ", *objs, end='\n', file=sys.stderr)
 
 
-class mailtemplate:
+class CiviMailTemplate:
     pass
 
 def getoptions():
@@ -63,27 +63,40 @@ def getoptions():
         description='Create a new mail template in a remote CiviCRM installation.',
         usage='%(prog)s [options] (--json=file|--html=file) [--text=file]'
     )
-    parser.add_argument('--verbose', '-v', action='count',
-                        help='Print additional messages to stderr', default=0)
+    parser.add_argument('--verbose', '-v',
+                        action='count',
+                        help='Print additional messages to stderr',
+                        default=0)
     parser.add_argument('--url',
-                        help='URL of the site homepage.', default='http://crm.example.org/sites/all/modules/civicrm')
-    parser.add_argument('--sitekey', help='The site_key of the site you are connecting to.', default='')
-    parser.add_argument('--apikey', help='The api key.', default='')
-    parser.add_argument('--name', help='Name of new template.')
-    parser.add_argument('--subject', help='Email subject text.')
-    parser.add_argument('--from_id', help='CiviCRM Contact ID of sender.')
+                        help='URL of the site homepage.',
+                        default='http://crm.example.org/sites/all/modules/civicrm')
+    parser.add_argument('--sitekey',
+                        help='The site_key of the site you are connecting to.',
+                        default='')
+    parser.add_argument('--apikey',
+                        help='The api key.',
+                        default='')
+    parser.add_argument('--name',
+                        help='Name of new template.')
+    parser.add_argument('--subject',
+                        help='Email subject text.')
+    parser.add_argument('--from_id',
+                        help='CiviCRM Contact ID of sender.')
     inputgroup = parser.add_mutually_exclusive_group(required=True)
-    inputgroup.add_argument('--json', nargs='?', type=argparse.FileType('r'),
+    inputgroup.add_argument('--json', nargs='?',
+                            type=argparse.FileType('r'),
                             dest='jsonfile',
                             help='File containing the templated email as JSON.')
-    inputgroup.add_argument('--html', nargs='?', type=argparse.FileType('r'),
+    inputgroup.add_argument('--html', nargs='?',
+                            type=argparse.FileType('r'),
                             dest='htmlfile',
                             help='File containing the templated HTML to email.')
-    parser.add_argument('--text', type=argparse.FileType('r'),
+    parser.add_argument('--text',
+                        type=argparse.FileType('r'),
                         dest='textfile',
-                        help='File containing the templated Text to email. If not supplied, the html version'
-                             'is rendered using html2text.')
-
+                        help='File containing the templated Text to email. If'
+                             ' not supplied, the html version is rendered using'
+                             ' html2text.')
     args = parser.parse_args()
 
     return args
@@ -98,7 +111,7 @@ def readjson(jsontemplate):
     :param jsontemplate: The JSON-derived input.
     :return: an object containing the data to send
     """
-    result = mailtemplate()
+    result = CiviMailTemplate()
     result.name = jsontemplate['name']
     result.subject = jsontemplate['subject']
     result.from_id = jsontemplate['from_id']
@@ -117,6 +130,7 @@ def readjson(jsontemplate):
 
     return result
 
+
 def readlocal():
     """
     Read the necesary input data for the mail template into the
@@ -126,7 +140,7 @@ def readlocal():
     :param jsontemplate: The JSON-derived input.
     :return: an object containing the data to send
     """
-    result = mailtemplate()
+    result = CiviMailTemplate()
     result.name = settings.name
     result.subject = settings.subject
     result.from_id = settings.from_id
@@ -138,10 +152,24 @@ def readlocal():
 
     return result
 
+
 def getplaintext(html):
+    """
+    Return a reasonable plain-text version of the HTML input.
+    :param html: string containing HTML input text.
+    :return: string containing plain-text equivalent.
+    """
     return html2text.html2text(html)
 
+
 def check_creator(civicrm, creator_id):
+    """
+    Check that creator_id is a valid CiviCRM user.
+
+    :param civicrm: Object used to talk to the CiviCRM api.
+    :param creator_id: A Civicrm userid.
+    :return: Boolean - True if the userid exists in CiviCRM as a user.
+    """
     params = {
         'contact_id': creator_id,
     }
@@ -150,14 +178,14 @@ def check_creator(civicrm, creator_id):
     if len(contactresults) == 1:
         if (contactresults[0]['contact_id'] == creator_id):
             infomsg('Creator is ', contactresults[0]['sort_name'])
+            return True
         else:
-            warningmsg('Creator id did not match.')
+            warningmsg('Creator id did not match : ' +
+                       contactresults[0]['contact_id'] + ' <> ' + creator_id)
             return False
     else:
-        warningmsg('Creator id was not found.')
+        warningmsg('Creator id was not found in CiviCRM.')
         return False
-
-    return True
 
 
 def main():
@@ -178,7 +206,8 @@ def main():
     infomsg('Subject:', template.subject)
     infomsg('Creator:', template.from_id)
 
-    civicrm = CiviCRM(settings.url, site_key=settings.sitekey, api_key=settings.apikey, use_ssl=False)
+    civicrm = CiviCRM(settings.url, site_key=settings.sitekey,
+                      api_key=settings.apikey, use_ssl=False)
 
     debugmsg('Constructed object ', civicrm)
 
