@@ -1,4 +1,11 @@
 #!bin/python
+# Script to read an email template, either directly or as a JSON bundle,
+# and send that bundle to a CiviCRM instance running remotely. JSON bundle
+# data can be read from a local file or from a web service via a supplied
+# URL.
+#
+# Written: August 2014 Ruth Ivimey-Cook
+#
 
 from __future__ import print_function
 import sys
@@ -6,7 +13,10 @@ import os
 import inspect
 import argparse
 import html2text
+import requests
+import json
 
+# This was found on the net to load a library from a relative URL.
 pycrmfolder = os.path.realpath(
     os.path.abspath(
         os.path.join(
@@ -16,7 +26,6 @@ pycrmfolder = os.path.realpath(
 if pycrmfolder not in sys.path:
     sys.path.insert(0, pycrmfolder)
 
-import json
 from pythoncivicrm import CiviCRM
 
 
@@ -52,6 +61,10 @@ def errormsg(*objs):
 
 
 class CiviMailTemplate:
+    """
+    Mail template object, filled out by readjson() and readlocal(),
+    to hold the intermediate form of the input email.
+    """
     pass
 
 def getoptions():
@@ -67,19 +80,19 @@ def getoptions():
                         action='count',
                         help='Print additional messages to stderr',
                         default=0)
-    parser.add_argument('--url',
-                        help='URL of the site homepage.',
+    parser.add_argument('--civicrm',
+                        help='URL of the CiviCRM module on the destination site.',
                         default='http://crm.example.org/sites/all/modules/civicrm')
     parser.add_argument('--sitekey',
-                        help='The site_key of the site you are connecting to.',
+                        help='The CiviCRM site_key of the site you are connecting to.',
                         default='')
     parser.add_argument('--apikey',
-                        help='The api key.',
+                        help='The CiviCRM api key.',
                         default='')
     parser.add_argument('--name',
-                        help='Name of new template.')
+                        help='Name of new mail template. Overrides a name specified by file.')
     parser.add_argument('--subject',
-                        help='Email subject text.')
+                        help='Email subject text. Overrides a subject specified by file.')
     parser.add_argument('--from_id',
                         help='CiviCRM Contact ID of sender.')
     inputgroup = parser.add_mutually_exclusive_group(required=True)
@@ -87,6 +100,9 @@ def getoptions():
                             type=argparse.FileType('r'),
                             dest='jsonfile',
                             help='File containing the templated email as JSON.')
+    inputgroup.add_argument('--url', nargs='?',
+                            dest='jsonurl',
+                            help='URL from which to fetch the templated email as JSON.')
     inputgroup.add_argument('--html', nargs='?',
                             type=argparse.FileType('r'),
                             dest='htmlfile',
@@ -153,16 +169,32 @@ def readlocal():
     return result
 
 
+def fetch_url(jsonurl):
+    """
+    Read a JSON template for the email by fetching the URL provided.
+
+    :param jsonurl: A URL that resolves to return application/json data.
+    :return: The returned JSON content, or the null-json '{}'
+    """
+    r = requests.get(jsonurl)
+    if r.status_code == 200 and r.headers['content-type'].startswith('application/json'):
+        # Should be this instead? return r.text.encode('utf8')
+        return r.text
+    else:
+        return '{}'
+
+
 def getplaintext(html):
     """
     Return a reasonable plain-text version of the HTML input.
+
     :param html: string containing HTML input text.
     :return: string containing plain-text equivalent.
     """
     return html2text.html2text(html)
 
 
-def check_creator(civicrm, creator_id):
+def check_creator_exists(civicrm, creator_id):
     """
     Check that creator_id is a valid CiviCRM user.
 
@@ -171,65 +203,96 @@ def check_creator(civicrm, creator_id):
     :return: Boolean - True if the userid exists in CiviCRM as a user.
     """
     params = {
-        'contact_id': creator_id,
+        u'contact_id': creator_id,
     }
-    contactresults = civicrm.get('Contact', **params)
-    debugmsg('Owner is object ', contactresults)
+    contactresults = civicrm.get(u'Contact', **params)
+    debugmsg(u'Owner is object ', contactresults)
     if len(contactresults) == 1:
-        if (contactresults[0]['contact_id'] == creator_id):
-            infomsg('Creator is ', contactresults[0]['sort_name'])
+        if contactresults[0][u'contact_id'] == creator_id:
+            infomsg(u'Creator is ', contactresults[0][u'sort_name'])
             return True
         else:
-            warningmsg('Creator id did not match : ' +
-                       contactresults[0]['contact_id'] + ' <> ' + creator_id)
+            warningmsg(u'Creator id did not match : ' +
+                       contactresults[0][u'contact_id'] + u' <> ' + creator_id)
             return False
     else:
-        warningmsg('Creator id was not found in CiviCRM.')
+        warningmsg(u'Creator id was not found in CiviCRM.')
+        return False
+
+
+def create_template(civicrm, template):
+    """
+    Send the email defined by the template to the CiviCRM instance.
+
+    :param civicrm: Object defining a CiviCRM instance.
+    :param template: Array defining the template mail.
+    """
+    params = {
+        u'name': template.name,
+        u'subject': template.subject,
+        u'created_id': template.from_id,
+        u'body_html': template.html,
+        u'body_text': template.plain,
+        u'url_tracking': u'1',
+    }
+    try:
+        results = civicrm.create(u'Mailing', **params)
+        debugmsg(u'Returned object ', results)
+        infomsg(u'Created on:', results[u'created_date'])
+        return True
+
+    except CivicrmError as e:
+        print(u'Mail template creation failed: ' + e.message)
         return False
 
 
 def main():
+    """
+    Parse the command line args to determine where the mail template
+    is coming from, fetch it, and send it on to the CiviCRM instance
+    using the supplied URL and keys.
+
+    Returns the integer code to shell:
+        0 for success,
+        1 for parameter problem,
+        2 for internal error.
+    """
     global settings
     settings = getoptions()
 
+    # There is a hierarchy of input sources: local HTML files are preferred,
+    # then a local JSON file, then a JSON URL. However this should not
+    # be important because 'getoptions()' considers the three sources to be
+    # mutually exclusive.
     if settings.htmlfile:
         template = readlocal()
-    if settings.jsonfile:
+    elif settings.jsonfile:
         jsontemplate = json.load(settings.jsonfile)
         template = readjson(jsontemplate)
+    elif settings.jsonurl:
+        jsontemplate = json.loads(fetch_url(settings.jsonurl))
+        template = readjson(jsontemplate)
 
-    infomsg('Using: ')
-    infomsg('  URL  :', settings.url)
-    infomsg('  Skey :', settings.sitekey)
-    infomsg('  Akey :', settings.apikey)
-    infomsg('Name   :', template.name)
-    infomsg('Subject:', template.subject)
-    infomsg('Creator:', template.from_id)
+    infomsg('Using URL :', settings.civicrm)
+    infomsg('Name      :', template.name)
+    infomsg('Subject   :', template.subject)
+    infomsg('Creator   :', template.from_id)
 
-    civicrm = CiviCRM(settings.url, site_key=settings.sitekey,
+    civicrm = CiviCRM(settings.civicrm, site_key=settings.sitekey,
                       api_key=settings.apikey, use_ssl=False)
 
-    debugmsg('Constructed object ', civicrm)
+    if check_creator_exists(civicrm, template.from_id):
+        if not create_template(civicrm, template):
+            return 1
 
-    if check_creator(civicrm, template.from_id):
-        params = {
-            'name': template.name,
-            'subject': template.subject,
-            'created_id': template.from_id,
-            'body_html': template.html,
-            'body_text': template.plain,
-            'url_tracking': '1',
-        }
-        results = civicrm.create('Mailing', **params)
-        infomsg('Returned object ', results)
+    return 0
 
 
 try:
     if __name__ == "__main__":
-        main()
+        sys.exit(main())
 except KeyboardInterrupt:
     print("Interrupted\n")
     sys.exit(1)
-
-
-
+else:
+    sys.exit(2)
