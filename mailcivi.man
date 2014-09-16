@@ -1,0 +1,90 @@
+.TH man 1 "September 16, 2014"
+.LO 1
+.SH NAME
+mailcivi \- read mailing body text and create a mail template from it in CiviCRM
+.SH SYNOPSIS
+.B man
+.RB [ \-vh ]
+.RB [ \--civicrm
+.IR url ]
+.RB [ \--sitekey
+.IR key ]
+.RB [ \--apikey
+.IR key ]
+.RB [ \--name
+.IR name ]
+.RB [ \--subject
+.IR subject ]
+.RB [ \--from_id
+.IR id ]
+.RB [ \--json
+.IR file ]
+.RB [ \--url
+.IR url ]
+.RB [ \--html
+.IR file ]
+.RB [ \--text
+.IR file ]
+
+.SH DESCRIPTION
+.B mailcivi
+is a script to read text forming the proposed body of an email and create a MailTemplate
+object in a
+.I CiviCRM
+instance. The body text can be provided in several ways: from local
+files, from a local JSON array, or from a remote URL supplying JSON data.
+.PP
+Once the MailTemplate object is created, the mail actually can be further modified and/or
+sent using the normal
+.I CiviCRM
+user interface.
+
+.SH OPTIONS
+.TP
+.B \-\-\^civicrm " url"
+Specify the URL for the remote CiviCRM instance. The URL must include the path to the
+civicrm module, and not just the homepage. For example in Drupal/Civi:
+.BR http://example.com/sites/all/modules/civicrm .
+.TP
+.B \-\-sitekey " key"
+The CiviCRM site key, which is part of the installation configuration.
+.TP
+.B \-\-apikey " key"
+The user's API key, which is part of the user profile. There is no user-interface within
+.I CiviCRM
+to create an api key.
+.TP
+.B \-\-name " name"
+A string which will be used to name the mail template within
+.I CiviCRM
+but which is not visible to email recipients.
+.TP
+.B \-\-subject " subject"
+A string which will be used as the proposed subject line in the new mail template.
+.TP
+.B \-\-from_id " id"
+A small integer identifying the CiviCRM user which will own the mail template and which
+by default will be named as the sender of any email.
+.TP
+.B \-\-json " file"
+A file containing JSON-encoded data in four fields:
+.RS
+.IP \(bu 4
+"subject" \- as for the --subject command line option.
+.IP \(bu 4
+"from_id" \- as for the --from_id command line option.
+.IP \(bu 4
+"name" \- as for the --name command line option.
+.IP \(bu 4
+"html" \- a file containing the HTML version of the body of the email template.
+.IP \(bu 4
+"plain" \- optional file containing the plain text version of the body of the email template. If not present, it will be created from the HTML version.
+.RE
+
+.SH SEE ALSO
+.IP \(bu 4
+python-civicrm \- project on Github that wraps the CiviCRM API as a Python object.
+
+.SH AUTHOR
+.B mailcivi
+and this manual page was written by Ruth Ivimey-Cook for eLifesciences.

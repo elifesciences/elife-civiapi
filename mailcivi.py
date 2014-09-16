@@ -194,6 +194,16 @@ def getplaintext(html):
     return html2text.html2text(html)
 
 
+def connect_to_civi():
+    """
+    Create a new CiviCRM object from the values in 'settings'.
+    :return:
+    """
+    civicrm = CiviCRM(settings.civicrm, site_key=settings.sitekey,
+                      api_key=settings.apikey, use_ssl=False)
+    return civicrm
+
+
 def check_creator_exists(civicrm, creator_id):
     """
     Check that creator_id is a valid CiviCRM user.
@@ -278,14 +288,12 @@ def main():
     infomsg('Subject   :', template.subject)
     infomsg('Creator   :', template.from_id)
 
-    civicrm = CiviCRM(settings.civicrm, site_key=settings.sitekey,
-                      api_key=settings.apikey, use_ssl=False)
-
+    civicrm = connect_to_civi()
     if check_creator_exists(civicrm, template.from_id):
-        if not create_template(civicrm, template):
-            return 1
+        if create_template(civicrm, template):
+            return 0
 
-    return 0
+    return 1
 
 
 try:
