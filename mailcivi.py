@@ -18,8 +18,7 @@ import requests
 basedir = os.path.dirname(os.path.abspath(__file__))
 os.sys.path.insert(0, os.path.join(basedir, 'pythonCivicrm'))
 
-from pythoncivicrm.pythoncivicrm import CiviCRM
-from pythoncivicrm.pythoncivicrm import CivicrmError
+from pythoncivicrm.pythoncivicrm import ( CiviCRM, CivicrmError )
 
 
 def debugmsg(settings, *objs):
