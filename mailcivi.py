@@ -10,27 +10,19 @@
 from __future__ import print_function
 import sys
 import os
-import inspect
 import argparse
+import json
 import html2text
 import requests
-import json
 
-# This was found on the net to load a library from a relative URL.
-pycrmfolder = os.path.realpath(
-    os.path.abspath(
-        os.path.join(
-            os.path.split(
-                inspect.getfile(inspect.currentframe()))[0],
-            "python-civicrm/pythoncivicrm")))
-if pycrmfolder not in sys.path:
-    sys.path.insert(0, pycrmfolder)
+basedir = os.path.dirname(os.path.abspath(__file__))
+os.sys.path.insert(0, os.path.join(basedir, 'pythonCivicrm'))
 
-from pythoncivicrm import CiviCRM
+from pythoncivicrm.pythoncivicrm import CiviCRM
+from pythoncivicrm.pythoncivicrm import CivicrmError
 
 
-# using print_function
-def debugmsg(*objs):
+def debugmsg(settings, *objs):
     """
     Print additional info to stderr iff the verbose flag has been enabled
     """
@@ -38,7 +30,7 @@ def debugmsg(*objs):
         print("DEBUG: ", *objs, end='\n', file=sys.stderr)
 
 
-def infomsg(*objs):
+def infomsg(settings, *objs):
     """
     Print additional info to stderr iff the verbose flag has been enabled
     """
@@ -46,14 +38,14 @@ def infomsg(*objs):
         print("INFO: ", *objs, end='\n', file=sys.stderr)
 
 
-def warningmsg(*objs):
+def warningmsg(settings, *objs):
     """
     Print warning message to stderr
     """
     print("WARNING: ", *objs, end='\n', file=sys.stderr)
 
 
-def errormsg(*objs):
+def errormsg(settings, *objs):
     """
     Print error message to stderr
     """
@@ -67,7 +59,8 @@ class CiviMailTemplate:
     """
     pass
 
-def getoptions():
+
+def getoptions(settings):
     """
     Use the Python argparse module to read in the command line args
     """
@@ -118,7 +111,7 @@ def getoptions():
     return args
 
 
-def readjson(jsontemplate):
+def readjson(settings, jsontemplate):
     """
     Read the necesary input data for the mail template into the
     result, where metadata from the command line (seen in the
@@ -147,7 +140,7 @@ def readjson(jsontemplate):
     return result
 
 
-def readlocal():
+def readlocal(settings):
     """
     Read the necesary input data for the mail template into the
     result, where metadata from the command line (seen in the
@@ -194,7 +187,7 @@ def getplaintext(html):
     return html2text.html2text(html)
 
 
-def connect_to_civi():
+def connect_to_civi(settings):
     """
     Create a new CiviCRM object from the values in 'settings'.
     :return:
@@ -204,7 +197,7 @@ def connect_to_civi():
     return civicrm
 
 
-def check_creator_exists(civicrm, creator_id):
+def check_creator_exists(settings, civicrm, creator_id):
     """
     Check that creator_id is a valid CiviCRM user.
 
@@ -216,21 +209,21 @@ def check_creator_exists(civicrm, creator_id):
         u'contact_id': creator_id,
     }
     contactresults = civicrm.get(u'Contact', **params)
-    debugmsg(u'Owner is object ', contactresults)
+    debugmsg(settings, u'Owner is object ', contactresults)
     if len(contactresults) == 1:
         if contactresults[0][u'contact_id'] == creator_id:
-            infomsg(u'Creator is ', contactresults[0][u'sort_name'])
+            infomsg(settings, u'Creator is ', contactresults[0][u'sort_name'])
             return True
         else:
-            warningmsg(u'Creator id did not match : ' +
+            warningmsg(settings, u'Creator id did not match : ' +
                        contactresults[0][u'contact_id'] + u' <> ' + creator_id)
             return False
     else:
-        warningmsg(u'Creator id was not found in CiviCRM.')
+        warningmsg(settings, u'Creator id was not found in CiviCRM.')
         return False
 
 
-def create_template(civicrm, template):
+def create_template(settings, civicrm, template):
     """
     Send the email defined by the template to the CiviCRM instance.
 
@@ -247,8 +240,8 @@ def create_template(civicrm, template):
     }
     try:
         results = civicrm.create(u'Mailing', **params)
-        debugmsg(u'Returned object ', results)
-        infomsg(u'Created on:', results[u'created_date'])
+        debugmsg(settings, u'Returned object ', results)
+        infomsg(settings, u'Created on:', results[u'created_date'])
         return True
 
     except CivicrmError as e:
@@ -267,7 +260,6 @@ def main():
         1 for parameter problem,
         2 for internal error.
     """
-    global settings
     settings = getoptions()
 
     # There is a hierarchy of input sources: local HTML files are preferred,
@@ -275,22 +267,22 @@ def main():
     # be important because 'getoptions()' considers the three sources to be
     # mutually exclusive.
     if settings.htmlfile:
-        template = readlocal()
+        template = readlocal(settings)
     elif settings.jsonfile:
-        jsontemplate = json.load(settings.jsonfile)
-        template = readjson(jsontemplate)
+        jsontemplate = json.load(settings, settings.jsonfile)
+        template = readjson(settings, jsontemplate)
     elif settings.jsonurl:
         jsontemplate = json.loads(fetch_url(settings.jsonurl))
-        template = readjson(jsontemplate)
+        template = readjson(settings, jsontemplate)
 
-    infomsg('Using URL :', settings.civicrm)
-    infomsg('Name      :', template.name)
-    infomsg('Subject   :', template.subject)
-    infomsg('Creator   :', template.from_id)
+    infomsg(settings, 'Using URL :', settings.civicrm)
+    infomsg(settings, 'Name      :', template.name)
+    infomsg(settings, 'Subject   :', template.subject)
+    infomsg(settings, 'Creator   :', template.from_id)
 
-    civicrm = connect_to_civi()
-    if check_creator_exists(civicrm, template.from_id):
-        if create_template(civicrm, template):
+    civicrm = connect_to_civi(settings)
+    if check_creator_exists(settings, civicrm, template.from_id):
+        if create_template(settings, civicrm, template):
             return 0
 
     return 1
@@ -299,8 +291,8 @@ def main():
 try:
     if __name__ == "__main__":
         sys.exit(main())
+    else:
+        pass
 except KeyboardInterrupt:
     print("Interrupted\n")
     sys.exit(1)
-else:
-    sys.exit(2)
