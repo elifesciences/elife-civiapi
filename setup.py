@@ -20,5 +20,5 @@ setup(
     ],
     entry_points="""\
 [console_scripts]
-mailcivi = mailcivi:main"""
+mailcivi = mailcivi:mailcivi"""
 )
