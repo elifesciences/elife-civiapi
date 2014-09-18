@@ -1,0 +1,2 @@
+'html2text >=2014.9.8'
+'requests >=2.4'
