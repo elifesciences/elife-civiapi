@@ -1,8 +1,8 @@
 import json
 from lettuce import world
 from lettuce import step
-from mailcivi import connect_to_civi
-from mailcivi import check_creator_exists
+from __init__ import connect_to_civi
+from __init__ import check_creator_exists
 
 
 class TestSettings:

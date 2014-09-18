@@ -18,4 +18,7 @@ setup(
         'Intended Audience :: Developers',
         'Programming Language :: Python :: 2.7',
     ],
+    entry_points="""\
+[console_scripts]
+mailcivi = mailcivi:main"""
 )

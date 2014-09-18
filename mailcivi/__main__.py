@@ -285,13 +285,3 @@ def main():
             return 0
 
     return 1
-
-
-try:
-    if __name__ == "__main__":
-        sys.exit(main())
-    else:
-        pass
-except KeyboardInterrupt:
-    print("Interrupted\n")
-    sys.exit(1)
