@@ -59,7 +59,7 @@ class CiviMailTemplate:
     pass
 
 
-def getoptions(settings):
+def getoptions():
     """
     Use the Python argparse module to read in the command line args
     """
@@ -287,13 +287,9 @@ def mailcivi():
     return 1
 
 
-def main(): # needed for console script
-    if __package__ == '':
-        # To be able to run 'python mailcivi-0.9/mailcivi':
-        import os.path
-        path = os.path.dirname(os.path.dirname(__file__))
-        sys.path[0:0] = [path]
+def main():                 # needed for console script
     sys.exit(mailcivi())
+
 
 if __name__ == "__main__":
     sys.exit(main())
