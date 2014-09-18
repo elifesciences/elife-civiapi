@@ -248,7 +248,7 @@ def create_template(settings, civicrm, template):
         return False
 
 
-def main():
+def mailcivi():
     """
     Parse the command line args to determine where the mail template
     is coming from, fetch it, and send it on to the CiviCRM instance
@@ -285,3 +285,15 @@ def main():
             return 0
 
     return 1
+
+
+def main(): # needed for console script
+    if __package__ == '':
+        # To be able to run 'python mailcivi-0.9/mailcivi':
+        import os.path
+        path = os.path.dirname(os.path.dirname(__file__))
+        sys.path[0:0] = [path]
+    sys.exit(mailcivi())
+
+if __name__ == "__main__":
+    sys.exit(main())
