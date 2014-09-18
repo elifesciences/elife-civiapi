@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name='elife-civiapi',
@@ -7,9 +7,15 @@ setup(
         "requests",
         "html2text",
     ],
+    packages=find_packages(exclude=['docs', 'tests*']),
     url='https://github.com/elifesciences/elife-civiapi',
     license='',
     author='Ruth Ivimey-Cook',
-    author_email='',
-    description='Python script to read text of a CiviCRM mail template and create it on a Civi server.'
+    author_email='r.ivimeycook@elifesciences.org',
+    description='Python script to read text of a CiviCRM mail template and create it on a Civi server.',
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'Programming Language :: Python :: 2.7',
+    ],
 )
