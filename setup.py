@@ -6,7 +6,6 @@ setup(
     install_requires=[
         "requests",
         "html2text",
-        "json",
     ],
     url='https://github.com/elifesciences/elife-civiapi',
     license='',
