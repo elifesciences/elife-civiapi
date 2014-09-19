@@ -1,7 +1,5 @@
-recursive-include bin *
 recursive-include docs *
 recursive-include tests *
 include *.py
 include README.md
 include CHANGES.txt
-include LICENSE.txt
