@@ -175,7 +175,7 @@ def fetch_url(jsonurl):
         # Should be this instead? return r.text.encode('utf8')
         return r.text
     else:
-        return '{}'
+        raise Exception('Failed to fetch JSON: ' + str(r.status_code))
 
 
 def getplaintext(html):
@@ -210,8 +210,8 @@ def check_creator_exists(settings, civicrm, creator_id):
         u'contact_id': creator_id,
     }
     contactresults = civicrm.get(u'Contact', **params)
-    debugmsg(settings, u'Owner is object ', contactresults)
     if len(contactresults) == 1:
+        debugmsg(settings, u'Creator is object ', contactresults[0])
         if contactresults[0][u'contact_id'] == creator_id:
             infomsg(settings, u'Creator is ', contactresults[0][u'sort_name'])
             return True
@@ -241,12 +241,36 @@ def create_template(settings, civicrm, template):
     }
     try:
         results = civicrm.create(u'Mailing', **params)
-        debugmsg(settings, u'Returned object ', results)
-        infomsg(settings, u'Created on:', results[u'created_date'])
+        debugmsg(settings, u'Returned Mailing object ', results[0])
+        infomsg(settings, u'Template Created on:', results[0]['created_date'])
+
+        # CiviCRM defaults to creating a MailingJob record, which is not
+        # wanted: this code deletes it again.
+        if len(results[0]['api.mailing_job.create']['values']) == 1:
+            delete_mailingjob(settings, civicrm, results[0]['api.mailing_job.create']['values'][0]['id'])
+
         return True
 
     except CivicrmError as e:
         print(u'Mail template creation failed: ' + e.message)
+        return False
+
+
+def delete_mailingjob(settings, civicrm, jobid):
+    """
+    Send the email defined by the template to the CiviCRM instance.
+
+    :param civicrm: Object defining a CiviCRM instance.
+    :param jobid: The mailing job ID to delete.
+    """
+    try:
+        results = civicrm.delete(u'MailingJob', jobid, True)
+        debugmsg(settings, u'Returned object ', results)
+        infomsg(settings, u'Deleted:', jobid)
+        return True
+
+    except CivicrmError as e:
+        print(u'Mailing job deletion failed: ' + e.message)
         return False
 
 
@@ -267,14 +291,19 @@ def mailcivi():
     # then a local JSON file, then a JSON URL. However this should not
     # be important because 'getoptions()' considers the three sources to be
     # mutually exclusive.
-    if settings.htmlfile:
-        template = readlocal(settings)
-    elif settings.jsonfile:
-        jsontemplate = json.load(settings, settings.jsonfile)
-        template = readjson(settings, jsontemplate)
-    elif settings.jsonurl:
-        jsontemplate = json.loads(fetch_url(settings.jsonurl))
-        template = readjson(settings, jsontemplate)
+    template = None
+    try:
+        if settings.htmlfile:
+            template = readlocal(settings)
+        elif settings.jsonfile:
+            jsontemplate = json.load(settings, settings.jsonfile)
+            template = readjson(settings, jsontemplate)
+        elif settings.jsonurl:
+            jsontemplate = json.loads(fetch_url(settings.jsonurl))
+            template = readjson(settings, jsontemplate)
+    except Exception as e:
+        print(e.message)
+        return 2
 
     infomsg(settings, 'Using URL :', settings.civicrm)
     infomsg(settings, 'Name      :', template.name)
