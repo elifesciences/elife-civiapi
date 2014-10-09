@@ -87,8 +87,12 @@ def getoptions():
                         help='Name of new mail template. Overrides a name specified by file.')
     parser.add_argument('--subject',
                         help='Email subject text. Overrides a subject specified by file.')
-    parser.add_argument('--from_id',
-                        help='CiviCRM Contact ID of sender.')
+    parser.add_argument('--creator_id',
+                        help='CiviCRM Contact ID of template creator, e.g. "5".')
+    parser.add_argument('--from_email',
+                        help='Email sender address; overrides creator_id details. e.g. "joe@example.com".')
+    parser.add_argument('--from_name',
+                        help='Email Name for source of the email; overrides creator_id details. e.g. "Joe"')
     inputgroup = parser.add_mutually_exclusive_group(required=True)
     inputgroup.add_argument('--json', nargs='?',
                             type=argparse.FileType('r'),
@@ -118,25 +122,32 @@ def readjson(settings, jsontemplate):
     result, where metadata from the command line (seen in the
     global settings) overrides json-supplied data.
 
+    :param settings: The command line settings object.
     :param jsontemplate: The JSON-derived input.
     :return: an object containing the data to send
     """
     result = CiviMailTemplate()
     result.name = jsontemplate['name']
     result.subject = jsontemplate['subject']
-    result.from_id = jsontemplate['from_id']
+    result.creator_id = jsontemplate['creator_id']
+    result.from_email = jsontemplate['from_email']
+    result.from_name = jsontemplate['from_name']
     result.html = jsontemplate['html']
     if jsontemplate['plain']:
         result.plain = jsontemplate['plain']
     else:
         result.plain = getplaintext(result.html)
 
-    if settings.name > "":
+    if settings.name > '':
         result.name = settings.name
-    if settings.subject > "":
+    if settings.subject > '':
         result.subject = settings.subject
-    if settings.from_id > "":
-        result.from_id = settings.from_id
+    if settings.creator_id > '':
+        result.creator_id = settings.creator_id
+    if settings.from_email > '':
+        result.from_email = settings.from_email
+    if settings.from_name > '':
+        result.from_name = settings.from_name
 
     return result
 
@@ -147,13 +158,15 @@ def readlocal(settings):
     result, where metadata from the command line (seen in the
     global settings) overrides json-supplied data.
 
-    :param jsontemplate: The JSON-derived input.
+    :param settings: The command line settings object.
     :return: an object containing the data to send
     """
     result = CiviMailTemplate()
     result.name = settings.name
     result.subject = settings.subject
-    result.from_id = settings.from_id
+    result.creator_id = settings.creator_id
+    result.from_email = settings.from_email
+    result.from_name = settings.from_name
     result.html = settings.htmlfile.read()
     if settings.textfile:
         result.plain = settings.textfile.read()
@@ -191,6 +204,8 @@ def getplaintext(html):
 def connect_to_civi(settings):
     """
     Create a new CiviCRM object from the values in 'settings'.
+
+    :param settings: The command line settings object.
     :return:
     """
     civicrm = CiviCRM(settings.civicrm, site_key=settings.sitekey,
@@ -202,6 +217,7 @@ def check_creator_exists(settings, civicrm, creator_id):
     """
     Check that creator_id is a valid CiviCRM user.
 
+    :param settings: The command line settings object.
     :param civicrm: Object used to talk to the CiviCRM api.
     :param creator_id: A Civicrm userid.
     :return: Boolean - True if the userid exists in CiviCRM as a user.
@@ -228,13 +244,16 @@ def create_template(settings, civicrm, template):
     """
     Send the email defined by the template to the CiviCRM instance.
 
+    :param settings: The command line settings object.
     :param civicrm: Object defining a CiviCRM instance.
     :param template: Array defining the template mail.
     """
     params = {
         u'name': template.name,
         u'subject': template.subject,
-        u'created_id': template.from_id,
+        u'created_id': template.creator_id,
+        u'from_email': template.from_email,
+        u'from_name': template.from_name,
         u'body_html': template.html,
         u'body_text': template.plain,
         u'url_tracking': u'1',
@@ -260,6 +279,7 @@ def delete_mailingjob(settings, civicrm, jobid):
     """
     Send the email defined by the template to the CiviCRM instance.
 
+    :param settings: The command line settings object.
     :param civicrm: Object defining a CiviCRM instance.
     :param jobid: The mailing job ID to delete.
     """
@@ -308,10 +328,12 @@ def mailcivi():
     infomsg(settings, 'Using URL :', settings.civicrm)
     infomsg(settings, 'Name      :', template.name)
     infomsg(settings, 'Subject   :', template.subject)
-    infomsg(settings, 'Creator   :', template.from_id)
+    infomsg(settings, 'Creator   :', template.creator_id)
+    infomsg(settings, 'Email     :', template.from_email)
+    infomsg(settings, 'Name      :', template.from_name)
 
     civicrm = connect_to_civi(settings)
-    if check_creator_exists(settings, civicrm, template.from_id):
+    if check_creator_exists(settings, civicrm, template.creator_id):
         if create_template(settings, civicrm, template):
             return 0
 
