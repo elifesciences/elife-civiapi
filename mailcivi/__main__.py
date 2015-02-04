@@ -93,8 +93,8 @@ def getoptions():
                         help='Email Name for source of the email; overrides creator details. e.g. "Joe"')
 
     parser.add_argument('--action',
-                        choices=['nothing', 'store', 'send'],
-                        default='store',
+                        choices=['disable', 'create', 'send'],
+                        default='create',
                         help='What to do with the mail: nothing at all, upload it, or upload and send.')
 
     creatgroup = parser.add_mutually_exclusive_group(required=False)
@@ -161,7 +161,7 @@ def readjson(settings, civicrm, jsontemplate):
     if 'action' in jsontemplate:
         result.action = jsontemplate['action']
     else:
-        result.action = 'store'
+        result.action = 'create'
 
     result.html = jsontemplate['html']
     if 'plain' in jsontemplate:
