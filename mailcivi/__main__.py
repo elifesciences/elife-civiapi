@@ -68,7 +68,7 @@ def getoptions():
     parser = argparse.ArgumentParser(
         prog='mailcivi',
         description='Create a new mail template in a remote CiviCRM installation.',
-        usage='%(prog)s [options] (--json=file|--html=file) [--text=file]'
+        usage='%(prog)s [options] [--creator_id=id | --creator=name] (--recipient=n | --recipient_id=n ) (--json=file|--html=file) [--text=file]'
     )
     parser.add_argument('--verbose', '-v',
                         action='count',
@@ -88,26 +88,26 @@ def getoptions():
     parser.add_argument('--subject',
                         help='Email subject text. Overrides a subject specified by file.')
     parser.add_argument('--from_email',
-                        help='Email sender address; overrides creator_id details. e.g. "joe@example.com".')
+                        help='Email sender address; overrides creator details. e.g. "joe@example.com".')
     parser.add_argument('--from_name',
-                        help='Email Name for source of the email; overrides creator_id details. e.g. "Joe"')
+                        help='Email Name for source of the email; overrides creator details. e.g. "Joe"')
 
     parser.add_argument('--action',
                         choices=['nothing', 'store', 'send'],
                         default='store',
                         help='What to do with the mail: nothing at all, upload it, or upload and send.')
 
-    creatorgroup = parser.add_mutually_exclusive_group(required=True)
-    creatorgroup.add_argument('--creator_id',
-                              help='CiviCRM Contact ID of template creator, e.g. "5".')
-    creatorgroup.add_argument('--creator_name',
-                              help='CiviCRM Contact Display Name of template creator, e.g. "Joe Bloggs".')
+    creatgroup = parser.add_mutually_exclusive_group(required=False)
+    creatgroup.add_argument('--creator_id',
+                            help='CiviCRM Contact ID number of template creator, e.g. "5".')
+    creatgroup.add_argument('--creator',
+                            help='CiviCRM Contact Name of template creator, e.g. "Joe Bloggs".')
 
     destgroup = parser.add_mutually_exclusive_group(required=False)
-    destgroup.add_argument('--to_id',
+    destgroup.add_argument('--recipient_id',
                            help='Group ID for recipient group of the email. e.g. "16".')
-    destgroup.add_argument('--to_name',
-                           help='Group Title for recipient group of the email. e.g. "Contacts"')
+    destgroup.add_argument('--recipient',
+                           help='Group title for recipient group of the email. e.g. "Contacts"')
 
     inputgroup = parser.add_mutually_exclusive_group(required=True)
     inputgroup.add_argument('--json', nargs='?',
@@ -132,7 +132,7 @@ def getoptions():
     return args
 
 
-def readjson(settings, jsontemplate):
+def readjson(settings, civicrm, jsontemplate):
     """
     Read the necesary input data for the mail template into the
     result, where metadata from the command line (seen in the
@@ -148,23 +148,23 @@ def readjson(settings, jsontemplate):
     result.from_email = jsontemplate['from_email']
     result.from_name = jsontemplate['from_name']
 
-    if jsontemplate['creator_name'] > '':
-        result.creator_id = creator_id_from_name(jsontemplate['creator_name'])
-    if jsontemplate['creator_id'] > '':
+    if 'creator' in jsontemplate:
+        result.creator_id = creator_id_from_name(settings, civicrm, jsontemplate['creator'])
+    elif 'creator_id' in jsontemplate:
         result.creator_id = jsontemplate['creator_id']
 
-    if jsontemplate['to_id'] > '':
-        result.to_id = jsontemplate['to_id']
-    elif jsontemplate['to_name'] > '':
-        result.to_id = group_id_from_title(jsontemplate['to_name'])
+    if 'recipient' in jsontemplate:
+        result.recipient_id = group_id_from_title(settings, civicrm, jsontemplate['recipient'])
+    elif 'recipient_id' in jsontemplate:
+        result.recipient_id = jsontemplate['recipient_id']
 
-    if jsontemplate['action']:
+    if 'action' in jsontemplate:
         result.action = jsontemplate['action']
     else:
         result.action = 'store'
 
     result.html = jsontemplate['html']
-    if jsontemplate['plain']:
+    if 'plain' in jsontemplate:
         result.plain = jsontemplate['plain']
     else:
         result.plain = getplaintext(result.html)
@@ -177,18 +177,18 @@ def readjson(settings, jsontemplate):
 
     if settings.creator_id > '':
         result.creator_id = settings.creator_id
-    elif settings.creator_name > '':
-        result.creator_id = creator_id_from_name(settings.creator_name)
+    elif settings.creator > '':
+        result.creator_id = creator_id_from_name(settings.creator)
 
     if settings.from_email > '':
         result.from_email = settings.from_email
     if settings.from_name > '':
         result.from_name = settings.from_name
 
-    if settings.to_id > '':
-        result.to_id = settings.to_id
-    elif settings.to_name > '':
-        result.to_id = group_id_from_title(settings.to_name)
+    if settings.recipient_id > '':
+        result.recipient_id = settings.recipient_id
+    elif settings.recipient > '':
+        result.recipient_id = group_id_from_title(settings, civicrm, settings.recipient)
 
     if settings.action > '':
         result.action = settings.action
@@ -196,7 +196,7 @@ def readjson(settings, jsontemplate):
     return result
 
 
-def readlocal(settings):
+def readlocal(settings, civicrm):
     """
     Read the necesary input data for the mail template into the
     result, where metadata from the command line (seen in the
@@ -212,15 +212,15 @@ def readlocal(settings):
     if settings.creator_id > '':
         result.creator_id = settings.creator_id
     elif settings.creator_name > '':
-        result.creator_id = creator_id_from_name(settings.creator_name)
+        result.creator_id = creator_id_from_name(settings, civicrm, settings.creator_name)
 
     result.from_email = settings.from_email
     result.from_name = settings.from_name
 
-    if settings.to_id > '':
-        result.to_id = settings.to_id
-    elif settings.to_name > '':
-        result.to_id = group_id_from_title(settings.to_name)
+    if settings.recipient_id > '':
+        result.recipient_id = settings.recipient_id
+    elif settings.recipient_name > '':
+        result.recipient_id = group_id_from_title(settings, civicrm, settings.recipient_name)
 
     result.action = settings.action
     result.html = settings.htmlfile.read()
@@ -281,8 +281,14 @@ def check_creator_exists(settings, civicrm, creator_id):
     params = {
         u'contact_id': creator_id,
     }
-    contactresults = civicrm.get(u'Contact', **params)
-    if len(contactresults) == 1:
+    try:
+        contactresults = civicrm.get(u'Contact', **params)
+
+    except CivicrmError as e:
+        print(u'Contact check failed: ' + e.message)
+        return False
+
+    if False != contactresults and len(contactresults) == 1:
         infomsg(settings, u'Creator is ', contactresults[0][u'sort_name'])
         return True
     else:
@@ -303,8 +309,14 @@ def creator_id_from_name(settings, civicrm, creator_name):
     params = {
         u'display_name': creator_name,
     }
-    contactresults = civicrm.get(u'Contact', **params)
-    if len(contactresults) == 1:
+    try:
+        contactresults = civicrm.get(u'Contact', **params)
+
+    except CivicrmError as e:
+        print(u'Contact search failed: ' + e.message)
+        return False
+
+    if False != contactresults and len(contactresults) == 1:
         infomsg(settings, u'Creator id is ', contactresults[0][u'contact_id'])
         return contactresults[0][u'contact_id']
     else:
@@ -325,8 +337,14 @@ def group_id_from_title(settings, civicrm, group_title):
     params = {
         u'title': group_title,
     }
-    contactresults = civicrm.get(u'Group', **params)
-    if len(contactresults) == 1:
+    try:
+        contactresults = civicrm.get(u'Group', **params)
+
+    except CivicrmError as e:
+        print(u'GroupID search failed: ' + e.message)
+        return False
+
+    if False != contactresults and len(contactresults) == 1:
         infomsg(settings, u'Group id is ', contactresults[0][u'id'])
         return contactresults[0][u'id']
     else:
@@ -352,23 +370,29 @@ def create_template(settings, civicrm, template, groupids, enable_mailingjob):
         u'body_html': template.html,
         u'body_text': template.plain,
         u'url_tracking': u'1',
+        u'api.mailing_job.create': 0
     }
 
     if enable_mailingjob and len(groupids) > 0:
-        params[u'scheduled_date'] = 'now'
+        params[u'scheduled_date'] = u'now'
+        params[u'groups'] = {}
         params[u'groups'][u'include'] = groupids
         params[u'groups'][u'exclude'] = {}
+        # params[u'mailings'] = {}
+        # params[u'mailings'][u'include'] = {}
+        # params[u'mailings'][u'exclude'] = {}
 
     try:
         results = civicrm.create(u'Mailing', **params)
-        infomsg(settings, u'Template Created on:', results[0]['created_date'])
-        infomsg(settings, u'Template Scheduled for:', results[0]['scheduled_date'])
+
+        infomsg(settings, u'Template Created on:', results[0][u'created_date'])
+        infomsg(settings, u'Template Scheduled for:', results[0][u'scheduled_date'])
 
         # CiviCRM creats a MailingJob record for us, which is not
         # always wanted: this code deletes it again.
-        the_mailingjob = results[0]['api.mailing_job.create']['values']
-        if (not enable_mailingjob) and len(the_mailingjob) == 1:
-            delete_mailingjob(settings, civicrm, the_mailingjob[0]['id'])
+        # the_mailingjob = results[0]['api.mailing_job.create']['values']
+        # if (not enable_mailingjob) and len(the_mailingjob) == 1:
+        #     delete_mailingjob(settings, civicrm, the_mailingjob[0]['id'])
 
         return True
 
@@ -409,6 +433,9 @@ def mailcivi():
     """
     settings = getoptions()
 
+    # settings required for Civi connect are command-args only.
+    civicrm = connect_to_civi(settings)
+
     # There is a hierarchy of input sources: local HTML files are preferred,
     # then a local JSON file, then a JSON URL. However this should not
     # be important because 'getoptions()' considers the three sources to be
@@ -416,34 +443,50 @@ def mailcivi():
     template = None
     try:
         if settings.htmlfile:
-            template = readlocal(settings)
+            infomsg(settings, 'Input from: HTML file')
+            template = readlocal(settings, civicrm)
         elif settings.jsonfile:
+            infomsg(settings, 'Input from: JSON file')
             jsontemplate = json.load(settings, settings.jsonfile)
-            template = readjson(settings, jsontemplate)
+            template = readjson(settings, civicrm, jsontemplate)
         elif settings.jsonurl:
+            infomsg(settings, 'Input from: Remote JSON <' + settings.jsonurl + '>')
             jsontemplate = json.loads(fetch_url(settings.jsonurl))
-            template = readjson(settings, jsontemplate)
+            template = readjson(settings, civicrm, jsontemplate)
     except Exception as e:
         print(e.message)
         return 2
 
+    # If group lookups fail, we shouldn't continue. A message has
+    # already been printed.
+    if hasattr(template, 'creator_id') and False == template.creator_id:
+        return 1
+    if hasattr(template, 'recipient_id') and False == template.recipient_id:
+        return 1
+
+    # Show config in verbose mode.
     infomsg(settings, 'Using URL :', settings.civicrm)
     infomsg(settings, 'Action    :', template.action)
     infomsg(settings, 'Name      :', template.name)
-    infomsg(settings, 'Subject   :', template.subject)
-    infomsg(settings, 'Creator   :', template.creator_id)
-    infomsg(settings, 'GroupID   :', template.to_id)
+    if hasattr(template, 'subject'):
+        infomsg(settings, 'Subject   :', template.subject)
+    if hasattr(template, 'creator_id'):
+        infomsg(settings, 'Creator   :', template.creator_id)
+    if hasattr(template, 'recipient_id'):
+        infomsg(settings, 'GroupID   :', template.recipient_id)
     infomsg(settings, 'Email     :', template.from_email)
     infomsg(settings, 'Name      :', template.from_name)
 
-    civicrm = connect_to_civi(settings)
+    if template.action == 'disable':
+        return 0
+
     if not check_creator_exists(settings, civicrm, template.creator_id):
         return 1
 
-    enable_send = (template.action == 'send')
-    group_list = []
+    enable_send = (template.action == 'send') and hasattr(template, 'recipient_id')
+    group_list = {}
     if enable_send:
-        group_list.append(template.to_id)
+        group_list[0] = template.recipient_id
 
     if not create_template(settings, civicrm, template, group_list, enable_send):
         return 1

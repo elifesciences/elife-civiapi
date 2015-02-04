@@ -7,6 +7,15 @@ mailcivi \- read mailing body text and create a mail template from it in CiviCRM
 .RB [ \-vh ]
 .RB [ \--civicrm
 .IR url ]
+.RB [ \--action
+.RB {
+.IR nothing
+.R |
+.IR create
+.R |
+.IR send
+.RI }
+.IB ]
 .RB [ \--sitekey
 .IR key ]
 .RB [ \--apikey
@@ -17,11 +26,17 @@ mailcivi \- read mailing body text and create a mail template from it in CiviCRM
 .IR subject ]
 .RB [ \--from_id
 .IR id ]
+.RB [ \--to_id
+.IR id ]
+.RB [ \--to_name
+.IR groupname ]
 .RB [ \--json
 .IR file ]
 .RB [ \--url
 .IR url ]
 .RB [ \--html
+.IR file ]
+.RB [ \--text
 .IR file ]
 .RB [ \--text
 .IR file ]
@@ -46,6 +61,17 @@ Specify the URL for the remote CiviCRM instance. The URL must include the path t
 civicrm module, and not just the homepage. For example in Drupal/Civi:
 .BR http://example.com/sites/all/modules/civicrm .
 .TP
+.B \-\-action " action"
+What to do:
+.RS
+.IP \(bu 4
+"nothing" \- do not create a template or send it.
+.IP \(bu 4
+"create" \- create a template on CiviCRM but do not send it.
+.IP \(bu 4
+"send" \- create a template on CiviCRM and also send it, if the recipient group has also been defined.
+.RE
+.TP
 .B \-\-sitekey " key"
 The CiviCRM site key, which is part of the installation configuration.
 .TP
@@ -54,19 +80,27 @@ The user's API key, which is part of the user profile. There is no user-interfac
 .I CiviCRM
 to create an api key.
 .TP
-.B \-\-name " name"
+.BR \-\-name " name "
 A string which will be used to name the mail template within
 .I CiviCRM
 but which is not visible to email recipients.
 .TP
-.B \-\-subject " subject"
+.BR \-\-subject " subject "
 A string which will be used as the proposed subject line in the new mail template.
 .TP
-.B \-\-from_id " id"
+.BR \-\-from_id " id "
 A small integer identifying the CiviCRM user which will own the mail template and which
 by default will be named as the sender of any email.
 .TP
-.B \-\-json " file"
+.BR \-\-to_id " id "
+A small integer identifying the CiviCRM group ID to which this template will be addressed.
+Only used if 'action' is 'send'. Only one of to_id or to_name can be set.
+.TP
+.BR \-\-to_name " name "
+A small integer identifying the CiviCRM group name to which this template will be addressed.
+Only used if 'action' is 'send'. Only one of to_id or to_name can be set.
+.TP
+.BR \-\-json " file"
 A file containing JSON-encoded data in four fields:
 .RS
 .IP \(bu 4
@@ -78,8 +112,61 @@ A file containing JSON-encoded data in four fields:
 .IP \(bu 4
 "html" \- a file containing the HTML version of the body of the email template.
 .IP \(bu 4
-"plain" \- optional file containing the plain text version of the body of the email template. If not present, it will be created from the HTML version.
+"plain" \- optional file containing the plain text version of the body of the email template. If not present, it
+will be created from the HTML version.
 .RE
+
+.SH JSON DATA
+If used with either the file or url sources, the JSON data file must have the following form.
+.nf
+.RS
+{
+  "name": "The name of the template in Civi",
+  "action": "create",
+  "subject": "The mail template subject line",
+  "creator_id": "960",
+  "from_email": "staff@example.org",
+  "from_name": "example",
+  "recipient": "",
+  "html": ".. html text ..",
+  "plain": ".. plain text .."
+}
+.RE
+.fi
+
+.SH EXAMPLES
+.PP
+The following reads a JSON data source at the example.com domain and constructs a template on
+the server at the example.org domain. No --action is specified, so the template is only created
+and no schedule is set for sending it.
+.PP
+.nf
+.RS
+mailcivi --civicrm=http://example.org/sites/all/modules/civicrm \\
+   --url=http://example.com/content_json/vor \\
+   --sitekey=fddfuhef1153ac --apikey=34o8vbeofu
+.RE
+.fi
+
+.PP
+The following reads the template data a local JSON file and creates a template on the server
+at the example.org domain. The recipients are set to those in the group with id '31' and assuming
+that such a group exists, the mail will be sent immediately.
+.PP
+.nf
+.RS
+mailcivi --action=send \\
+   --civicrm=http://example.org/sites/all/modules/civicrm \\
+   --json=local.json \\
+   --to_id=31 \\
+   --sitekey=fddfuhef1153ac --apikey=34o8vbeofu
+.RE
+
+.fi
+.PP
+The following reads the template data a local JSON file and creates a template on the server
+at the example.org domain. The recipients are set to those in the group with id '31' and assuming
+that such a group exists, the mail will be sent immediately.
 
 .SH SEE ALSO
 .IP \(bu 4

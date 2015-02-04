@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='elife-civiapi',
-    version='1.0.1',
+    version='1.1.0.2',
     install_requires=[
         "requests",
         "html2text",
@@ -14,7 +14,7 @@ setup(
     author_email='r.ivimeycook@elifesciences.org',
     description='Python script to read text of a CiviCRM mail template and create it on a Civi server.',
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production',
         'Intended Audience :: Developers',
         'Programming Language :: Python :: 2.7',
     ],

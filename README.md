@@ -32,7 +32,7 @@ This is a shell script, to be used from the command line. For example:
 
 ```
   bin/python mailcivi.py --sitekey={key} --apikey={key} \
-      --name "Test mailing" --subject "My First Mailing" --from_id 1
+      --name "Test mailing" --subject "My First Mailing" --from_id 1 \
       --civicrm=http://crm.example.org/sites/all/modules/civicrm \
       --html=file.html
 ```
