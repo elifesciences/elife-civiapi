@@ -361,26 +361,30 @@ def create_template(settings, civicrm, template, groupids, enable_mailingjob):
     :param template: Array defining the template mail.
     """
 
+    # parameters that will be put in the http request.
     params = {
         u'name': template.name,
         u'subject': template.subject,
         u'created_id': template.creator_id,
+        u'api.mailing_job.create': 0
+    }
+
+    # parameters that are json-encoded into the request.
+    config = {
         u'from_email': template.from_email,
         u'from_name': template.from_name,
         u'body_html': template.html,
         u'body_text': template.plain,
         u'url_tracking': u'1',
-        u'api.mailing_job.create': 0
     }
 
     if enable_mailingjob and len(groupids) > 0:
-        params[u'scheduled_date'] = u'now'
-        params[u'groups'] = {}
-        params[u'groups'][u'include'] = groupids
-        params[u'groups'][u'exclude'] = {}
-        # params[u'mailings'] = {}
-        # params[u'mailings'][u'include'] = {}
-        # params[u'mailings'][u'exclude'] = {}
+        # these cannot be in the http parameters.
+        config[u'groups'] = {u'include': groupids,
+                             u'exclude': []}
+        config[u'scheduled_date'] = u'now'
+
+    params[u'json'] = json.dumps(config)
 
     try:
         results = civicrm.create(u'Mailing', **params)
@@ -388,7 +392,7 @@ def create_template(settings, civicrm, template, groupids, enable_mailingjob):
         infomsg(settings, u'Template Created on:', results[0][u'created_date'])
         infomsg(settings, u'Template Scheduled for:', results[0][u'scheduled_date'])
 
-        # CiviCRM creats a MailingJob record for us, which is not
+        # CiviCRM creates a MailingJob record for us, which is not
         # always wanted: this code deletes it again.
         # the_mailingjob = results[0]['api.mailing_job.create']['values']
         # if (not enable_mailingjob) and len(the_mailingjob) == 1:
@@ -484,9 +488,9 @@ def mailcivi():
         return 1
 
     enable_send = (template.action == 'send') and hasattr(template, 'recipient_id')
-    group_list = {}
+    group_list = []
     if enable_send:
-        group_list[0] = template.recipient_id
+        group_list = [ template.recipient_id ]
 
     if not create_template(settings, civicrm, template, group_list, enable_send):
         return 1
