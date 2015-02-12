@@ -1,2 +1,4 @@
-html2text>=2014.9.8
-requests>=2.4
+html2text==2014.12.29
+lettuce==0.2.20
+requests==2.5.1
+-e git+git@github.com:elifesciences/python-civicrm.git#egg=Package
