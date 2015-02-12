@@ -1,9 +1,8 @@
 import json
 from lettuce import world
 from lettuce import step
-from __init__ import connect_to_civi
-from __init__ import check_creator_exists
-
+from mailcivi import connect_to_civi
+from mailcivi import check_creator_exists
 
 class TestSettings:
     pass
@@ -16,7 +15,7 @@ def given_i_have_a_civicrm_url_of(step, url):
 
 @step(u'And I have a Site Key and API Key loaded')
 def and_i_have_a_site_key_and_api_key_loaded(step):
-    f = open('../elife-civiapi-private/apikeys.json', 'r')
+    f = open('apikeys.json', 'r')
     assert f, "Cannot open file apikeys.json: " + \
               "create it  with: { \"apikey\": \"redacted\", \"sitekey\": \"redacted\" }"
     keys = json.load(f)

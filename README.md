@@ -14,14 +14,11 @@ This project can be used with virtualenv:
 
 Requirements
 ------------
-You will need to install the following packages:
 
-```
-  pip install html2text
-  pip install requests
-  pip install json
-```
-  
+Python dependencies can be installed with:
+
+    $ pip install -r requirements.txt
+ 
 The package python-civicrm is provided as a git subproject link which should
 be fetched if needed from git@github.com:rivimey/python-civicrm.git
 Note that the subproject is called "pythonCivicrm", not "python-civicrm".
@@ -53,7 +50,5 @@ Tests
 -----
 There are tests created using `lettuce` in the tests folder:
 
-```
-  cd tests
-  lettuce
-```
+    cd tests
+    lettuce
