@@ -1,0 +1,7 @@
+CHANGELOG
+
+1.1.0.2 : Feb 2015
+
+ - Bumped version from 1.0.1
+ - added --action, --creator, --recipient and --recipient_id parameters and associated functionality:
+ - modified manpage; added examples and JSON structure.
