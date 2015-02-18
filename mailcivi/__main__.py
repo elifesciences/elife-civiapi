@@ -94,7 +94,6 @@ def getoptions():
 
     parser.add_argument('--action',
                         choices=['disable', 'create', 'send'],
-                        default='create',
                         help='What to do with the mail: nothing at all, upload it, or upload and send.')
 
     creatgroup = parser.add_mutually_exclusive_group(required=False)
@@ -366,7 +365,6 @@ def create_template(settings, civicrm, template, groupids, enable_mailingjob):
         u'name': template.name,
         u'subject': template.subject,
         u'created_id': template.creator_id,
-        u'api.mailing_job.create': 0
     }
 
     # parameters that are json-encoded into the request.
@@ -394,9 +392,9 @@ def create_template(settings, civicrm, template, groupids, enable_mailingjob):
 
         # CiviCRM creates a MailingJob record for us, which is not
         # always wanted: this code deletes it again.
-        # the_mailingjob = results[0]['api.mailing_job.create']['values']
-        # if (not enable_mailingjob) and len(the_mailingjob) == 1:
-        #     delete_mailingjob(settings, civicrm, the_mailingjob[0]['id'])
+        the_mailingjob = results[0]['api.mailing_job.create']['values']
+        if (not enable_mailingjob) and len(the_mailingjob) == 1:
+            delete_mailingjob(settings, civicrm, the_mailingjob[0]['id'])
 
         return True
 
@@ -416,7 +414,7 @@ def delete_mailingjob(settings, civicrm, jobid):
     try:
         results = civicrm.delete(u'MailingJob', jobid, True)
         debugmsg(settings, u'Returned object ', results)
-        infomsg(settings, u'Deleted:', jobid)
+        infomsg(settings, u'Deleted Mailing job:', jobid)
         return True
 
     except CivicrmError as e:
