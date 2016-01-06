@@ -265,7 +265,7 @@ def connect_to_civi(settings):
     :return:
     """
     civicrm = CiviCRM(settings.civicrm, site_key=settings.sitekey,
-                      api_key=settings.apikey, use_ssl=False)
+                      api_key=settings.apikey, use_ssl=True)
     return civicrm
 
 
