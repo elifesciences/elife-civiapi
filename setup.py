@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='elife-civiapi',
-    version='1.1.0.2',
+    version='1.1.0.3',
     install_requires=[
         "requests",
         "html2text",
